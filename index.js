@@ -1,78 +1,114 @@
 const express = require('express');
-const { Client, LocalAuth } = require('whatsapp-web.js');
+const { Client, RemoteAuth } = require('whatsapp-web.js');
+const { createClient } = require('@supabase/supabase-js');
 const axios = require('axios');
+const qrcode = require('qrcode-terminal');
 
-// 1. CONFIGURACIÓN DE EXPRESS (para que Render no suspenda el bot)
-const app = express();
-const PORT = process.env.PORT || 3000; // Render asigna el puerto automáticamente
-app.get('/', (req, res) => {
-  res.send('WhatsApp Bot está vivo y escuchando.'); // Endpoint de salud
-});
-app.listen(PORT, () => console.log(`Servidor escuchando en el puerto ${PORT}`));
+// --- 1. CONFIGURACIÓN DE SUPABASE ---
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_KEY;
 
-// 2. CONFIGURACIÓN DEL CLIENTE DE WHATSAPP
+if (!supabaseUrl || !supabaseKey) {
+    console.error("Error Crítico: Las variables de entorno de Supabase (SUPABASE_URL y SUPABASE_KEY) son requeridas.");
+    process.exit(1); // Detiene la aplicación si las variables no están
+}
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+// --- 2. ALMACÉN DE SESIÓN PERSONALIZADO CON SUPABASE ---
+class SupabaseAuthStore {
+    async save(data) {
+        const session_id = data.session;
+        // 'upsert' crea la fila si no existe, o la actualiza si ya existe.
+        const { error } = await supabase
+            .from('sessions')
+            .upsert({ session_id: session_id, session_data: JSON.stringify(data) });
+
+        if (error) {
+            console.error("Error al guardar la sesión en Supabase:", error);
+        }
+    }
+
+    async extract(session_id) {
+        const { data, error } = await supabase
+            .from('sessions')
+            .select('session_data')
+            .eq('session_id', session_id)
+            .single();
+
+        if (error || !data) {
+            // No es un error si la sesión no se encuentra la primera vez
+            if (error && error.code !== 'PGRST116') { 
+                console.error("Error al extraer la sesión de Supabase:", error);
+            }
+            return null;
+        }
+        
+        return JSON.parse(data.session_data);
+    }
+
+    async delete(session_id) {
+        const { error } = await supabase
+            .from('sessions')
+            .delete()
+            .eq('session_id', session_id);
+
+        if (error) {
+            console.error("Error al eliminar la sesión de Supabase:", error);
+        }
+    }
+}
+
+// --- 3. CONFIGURACIÓN DEL CLIENTE DE WHATSAPP ---
+const store = new SupabaseAuthStore();
+
 const client = new Client({
-  authStrategy: new LocalAuth({
-    // Ruta donde se guardará la sesión. '/data' es el disco persistente de Render.
-    dataPath: '/data' 
-  }),
-  puppeteer: {
-    // Requerido para ejecutarse en un entorno de servidor como Render
-    args: ['--no-sandbox', '--disable-setuid-sandbox'],
-  }
+    authStrategy: new RemoteAuth({
+        sessionID: 'bot-principal', // Nombre para identificar esta sesión en la DB
+        store: store,
+        backupSyncIntervalMs: 300000
+    }),
+    puppeteer: {
+        args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    }
 });
 
-// 3. EVENTOS DEL CLIENTE DE WHATSAPP
+// --- 4. SERVIDOR DE EXPRESS ---
+const app = express();
+const PORT = process.env.PORT || 3000;
+app.get('/', (req, res) => {
+  res.send('WhatsApp Bot con Supabase está activo.');
+});
+app.listen(PORT, () => console.log(`Servidor Express escuchando en el puerto ${PORT}`));
 
-// Cuando se genera el QR, no lo mostraremos en terminal, lo veremos en los logs de Render
+// --- 5. EVENTOS DEL CLIENTE DE WHATSAPP ---
 client.on('qr', qr => {
-    console.log('--------------------------------------------------');
-    console.log('ESCANEAME! Ve los logs de Render para el QR Code.');
-    console.log('--------------------------------------------------');
-    // Usaremos una librería para mostrarlo en los logs si es necesario,
-    // pero usualmente los logs de Render muestran el texto del QR directamente.
-    const qrcode = require('qrcode-terminal');
+    console.log('QR RECIBIDO, ESCANEA POR FAVOR.');
     qrcode.generate(qr, { small: true });
 });
 
-client.on('authenticated', () => {
-    console.log('AUTENTICADO CORRECTAMENTE.');
+client.on('remote_session_saved', () => {
+    console.log('Sesión guardada remotamente en Supabase.');
 });
 
 client.on('ready', () => {
-    console.log('¡CLIENTE LISTO Y CONECTADO!');
+    console.log('¡CLIENTE DE WHATSAPP LISTO!');
 });
 
-client.on('auth_failure', msg => {
-    console.error('FALLO DE AUTENTICACIÓN', msg);
-    // Podrías añadir lógica para reiniciar el proceso si falla.
-});
-
-// El evento más importante: cuando llega un mensaje
 client.on('message', async message => {
-    console.log(`Mensaje recibido de: ${message.from} -> "${message.body}"`);
-    
-    // URL de tu Webhook de n8n (la tomaremos de una variable de entorno)
+    console.log(`Mensaje recibido de: ${message.from}`);
     const n8nWebhookUrl = process.env.N8N_WEBHOOK_URL;
+    if (!n8nWebhookUrl) return;
 
-    if (!n8nWebhookUrl) {
-        return console.error("Error: La variable de entorno N8N_WEBHOOK_URL no está configurada.");
-    }
-
-    // Preparamos los datos para enviar a n8n
-    const payload = {
-        from: message.from,
-        text: message.body
-    };
-
-    // Hacemos la petición POST al webhook de n8n
     try {
-        await axios.post(n8nWebhookUrl, payload);
-        console.log(`Mensaje de ${message.from} enviado a n8n.`);
+        await axios.post(n8nWebhookUrl, { from: message.from, text: message.body });
     } catch (error) {
         console.error(`Error al enviar el webhook a n8n: ${error.message}`);
     }
 });
 
-// Iniciar el cliente de WhatsApp
-client.initialize();
+client.on('auth_failure', msg => {
+    console.error('FALLO DE AUTENTICACIÓN:', msg);
+});
+
+// --- 6. INICIAR EL CLIENTE ---
+client.initialize().catch(err => console.error("Error al inicializar el cliente:", err));
