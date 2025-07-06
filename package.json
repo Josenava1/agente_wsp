@@ -1,12 +1,13 @@
 {
-  "name": "whatsapp-render-bot",
+  "name": "whatsapp-supabase-bot",
   "version": "1.0.0",
-  "description": "WhatsApp agent bot on Render",
+  "description": "WhatsApp agent bot on Render with Supabase",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.43.5",
     "axios": "^1.7.2",
     "express": "^4.19.2",
     "whatsapp-web.js": "^1.23.0"
