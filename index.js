@@ -43,12 +43,14 @@ const client = new Client({
     authStrategy: new RemoteAuth({
         store: store,
         backupSyncIntervalMs: 60000,
-        dataPath: './.wwebjs_auth'
+        dataPath: './temp', // Carpeta temporal dentro del contenedor
+        backupSync: false   // <- Esto es crucial para que no cree ni lea el ZIP
     }),
     puppeteer: {
         args: ['--no-sandbox', '--disable-setuid-sandbox'],
     }
 });
+
 
 // --- 4. SERVIDOR DE EXPRESS ---
 const app = express();
