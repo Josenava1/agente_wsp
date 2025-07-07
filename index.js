@@ -42,12 +42,14 @@ const store = new SupabaseAuthStore();
 const client = new Client({
     authStrategy: new RemoteAuth({
         store: store,
-        backupSyncIntervalMs: 60000
+        backupSyncIntervalMs: 60000,
+        dataPath: './.wwebjs_auth'
     }),
     puppeteer: {
         args: ['--no-sandbox', '--disable-setuid-sandbox'],
     }
 });
+
 // --- 4. SERVIDOR DE EXPRESS ---
 const app = express();
 app.use(express.json()); // Habilitar que Express entienda JSON
