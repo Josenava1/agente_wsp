@@ -61,22 +61,16 @@ class SupabaseAuthStore {
     }
 }
 
-// Y actualiza también la inicialización de RemoteAuth
-const client = new Client({
-    authStrategy: new RemoteAuth({
-        store: store,
-        // Ya no se necesita sessionID aquí, la librería lo gestiona
-        backupSyncIntervalMs: 300000 
-    }),
-
 // --- 3. CONFIGURACIÓN DEL CLIENTE DE WHATSAPP ---
+
+// Se define el store PRIMERO
 const store = new SupabaseAuthStore();
 
+// Se usa el store para inicializar el cliente
 const client = new Client({
     authStrategy: new RemoteAuth({
-        sessionID: 'bot-principal', // Nombre para identificar esta sesión en la DB
         store: store,
-        backupSyncIntervalMs: 300000
+        backupSyncIntervalMs: 300000 
     }),
     puppeteer: {
         args: ['--no-sandbox', '--disable-setuid-sandbox'],
