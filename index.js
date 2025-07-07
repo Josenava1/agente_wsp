@@ -41,7 +41,7 @@ const store = new SupabaseAuthStore();
 
 const client = new Client({
     authStrategy: new RemoteAuth({
-        store: store
+        store: store,
         backupSyncIntervalMs: 60000
     }),
     puppeteer: {
