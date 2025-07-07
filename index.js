@@ -38,7 +38,7 @@ class SupabaseAuthStore {
 // --- 3. CONFIGURACIÓN DEL CLIENTE DE WHATSAPP ---
 const store = new SupabaseAuthStore();
 const client = new Client({
-    authStrategy: new RemoteAuth({ store: store, backupSyncIntervalMs: 300000 }),
+    authStrategy: new RemoteAuth({ store: store }),
     puppeteer: { args: ['--no-sandbox', '--disable-setuid-sandbox'] }
 });
 
