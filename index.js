@@ -69,8 +69,7 @@ const store = new SupabaseAuthStore();
 // Se usa el store para inicializar el cliente
 const client = new Client({
     authStrategy: new RemoteAuth({
-        store: store,
-        backupSyncIntervalMs: 300000 
+        store: store
     }),
     puppeteer: {
         args: ['--no-sandbox', '--disable-setuid-sandbox'],
