@@ -88,7 +88,7 @@ app.listen(PORT, () => console.log(`Servidor Express escuchando en el puerto ${P
 // --- 5. EVENTOS DEL CLIENTE DE WHATSAPP ---
 client.on('qr', qr => {
     console.log('QR RECIBIDO, ESCANEA POR FAVOR.');
-    qrcode.generate(qr, { small: true });
+    qrcode.generate(qr);
 });
 
 client.on('remote_session_saved', () => {
