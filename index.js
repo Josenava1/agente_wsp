@@ -36,12 +36,17 @@ class SupabaseAuthStore {
 }
 
 // --- 3. CONFIGURACIÓN DEL CLIENTE DE WHATSAPP ---
-const store = new SupabaseAuthStore();
-const client = new Client({
-    authStrategy: new RemoteAuth({ store: store }),
-    puppeteer: { args: ['--no-sandbox', '--disable-setuid-sandbox'] }
-});
 
+const store = new SupabaseAuthStore();
+
+const client = new Client({
+    authStrategy: new RemoteAuth({
+        store: store
+    }),
+    puppeteer: {
+        args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    }
+});
 // --- 4. SERVIDOR DE EXPRESS ---
 const app = express();
 app.use(express.json()); // Habilitar que Express entienda JSON
