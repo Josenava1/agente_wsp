@@ -17,46 +17,57 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 // --- 2. ALMACÉN DE SESIÓN PERSONALIZADO CON SUPABASE ---
 class SupabaseAuthStore {
     async save(data) {
-        const session_id = data.session;
-        // 'upsert' crea la fila si no existe, o la actualiza si ya existe.
         const { error } = await supabase
             .from('sessions')
-            .upsert({ session_id: session_id, session_data: JSON.stringify(data) });
+            .upsert({ session_id: data.session, session_data: JSON.stringify(data) });
 
         if (error) {
             console.error("Error al guardar la sesión en Supabase:", error);
         }
     }
 
-    async extract(session_id) {
+    async extract({ session }) {
         const { data, error } = await supabase
             .from('sessions')
             .select('session_data')
-            .eq('session_id', session_id)
+            .eq('session_id', session)
             .single();
 
-        if (error || !data) {
-            // No es un error si la sesión no se encuentra la primera vez
-            if (error && error.code !== 'PGRST116') { 
-                console.error("Error al extraer la sesión de Supabase:", error);
-            }
-            return null;
+        if (error && error.code !== 'PGRST116') {
+            console.error("Error al extraer la sesión de Supabase:", error);
         }
-        
-        return JSON.parse(data.session_data);
+        return data ? JSON.parse(data.session_data) : null;
     }
 
-    async delete(session_id) {
+    async delete({ session }) {
         const { error } = await supabase
             .from('sessions')
             .delete()
-            .eq('session_id', session_id);
+            .eq('session_id', session);
 
         if (error) {
             console.error("Error al eliminar la sesión de Supabase:", error);
         }
     }
+
+    async sessionExists({ session }) {
+        const { data } = await supabase
+            .from('sessions')
+            .select('session_id')
+            .eq('session_id', session)
+            .single();
+            
+        return data !== null;
+    }
 }
+
+// Y actualiza también la inicialización de RemoteAuth
+const client = new Client({
+    authStrategy: new RemoteAuth({
+        store: store,
+        // Ya no se necesita sessionID aquí, la librería lo gestiona
+        backupSyncIntervalMs: 300000 
+    }),
 
 // --- 3. CONFIGURACIÓN DEL CLIENTE DE WHATSAPP ---
 const store = new SupabaseAuthStore();
