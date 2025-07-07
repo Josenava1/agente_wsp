@@ -40,16 +40,16 @@ class SupabaseAuthStore {
 const store = new SupabaseAuthStore();
 
 const client = new Client({
-    authStrategy: new RemoteAuth({
-        store: store,
-        backupSyncIntervalMs: 60000,
-        dataPath: './temp', // Carpeta temporal dentro del contenedor
-        backupSync: false   // <- Esto es crucial para que no cree ni lea el ZIP
-    }),
-    puppeteer: {
-        args: ['--no-sandbox', '--disable-setuid-sandbox'],
-    }
+  authStrategy: new RemoteAuth({
+    store: store,
+    backupSyncIntervalMs: 60000,
+    dataPath: './temp' // puedes dejarlo o quitarlo con esta versión
+  }),
+  puppeteer: {
+    args: ['--no-sandbox', '--disable-setuid-sandbox'],
+  }
 });
+
 
 
 // --- 4. SERVIDOR DE EXPRESS ---
