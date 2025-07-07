@@ -42,6 +42,7 @@ const store = new SupabaseAuthStore();
 const client = new Client({
     authStrategy: new RemoteAuth({
         store: store
+        backupSyncIntervalMs: 60000
     }),
     puppeteer: {
         args: ['--no-sandbox', '--disable-setuid-sandbox'],
